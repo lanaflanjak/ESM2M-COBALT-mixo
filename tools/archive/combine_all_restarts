@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Deal with icebergs...
+/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/NCO/5.0.4-CrayGNU-21.09/bin/ncrcat icebergs.res.nc.* icebergs.res.nc
+rm icebergs.res.nc.*
+
+# Catch the Land tiling...
+LM_files=("cana" "glac" "lake" "land" "snow" "soil" "vegn1" "vegn2")
+
+for file in "${LM_files[@]}"
+do
+  /users/awienker/ESM2M/bin/combine-ncc ${file}.res.nc.0* ${file}.res.nc
+  rm ${file}.res.nc.0*
+done
+
+# Catch all the rest (mostly ocean) restarts that are actually domain-decomposed
+for file in *.0000; do
+  /users/awienker/ESM2M/bin/mppnccombine -v -r ${file%.0000} ${file%.0000}.0*
+done
+
+
+# Remove checksums now
+for file in ./*.nc; do
+
+  # Loop through all variables in the netcdf file
+  for var in $(ncdump -h "$file" | grep "float\|double\|int\|short\|byte" | awk -F'[ (]' '{print $2}'); do
+    # Check if variable has the attribute "checksum"
+      if ncdump -h "$file" | grep -q "$var:checksum"; then
+        # Delete the attribute "checksum"
+	ncatted -a checksum,${var},d,,- "$file"
+        echo "Attribute 'checksum' deleted from variable '$var'"
+      fi
+  done
+
+done
+

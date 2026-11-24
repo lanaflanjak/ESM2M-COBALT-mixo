@@ -1,0 +1,5 @@
+module load daint-gpu
+module switch PrgEnv-cray PrgEnv-intel
+module unload cray-libsci
+module load cray-netcdf-hdf5parallel
+export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH

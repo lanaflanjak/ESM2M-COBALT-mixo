@@ -1,0 +1,20 @@
+
+rm core.*
+rm available_diags*
+rm diag_integral.out
+rm logfile.*
+rm MOM_param*
+rm ocean.stat*
+rm seaice.stat*
+rm SIS*
+rm stdout.log
+rm stocks.out
+rm stocks.nc
+rm time_stamp.out
+rm Vertical_coordinate.nc
+rm *.00*
+rm ocean_*
+rm land_*
+rm atmos_*
+rm ice*
+

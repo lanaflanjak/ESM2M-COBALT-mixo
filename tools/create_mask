@@ -1,0 +1,4 @@
+
+/users/awienker/ESM2M/src/tools/check_mask/check_mask --grid_file ./INPUT/ocean_mosaic.nc \
+						      --ocean_topog ./INPUT/topog.nc \
+						      --min_pe 235 --max_pe 245 

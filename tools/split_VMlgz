@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Splits the Lg Zoo into 0.5*VMLgz and 0.5*Lgz 
+#PATH="/capstor/apps/cscs/eiger/easybuild/software/NCO/5.0.1-cpeGNU-22.05/bin/:$PATH"
+#ncap2=/capstor/apps/cscs/eiger/easybuild/software/NCO/5.0.1-cpeGNU-22.05/bin/ncap2
+#ncatted
+#ncap2=/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/NCO/5.0.4-CrayGNU-21.09/bin/ncap2
+
+for file in ./ocean_cobalt.res.nc*; do
+  echo "Opening file ${file}" 
+  ncap2 -s 'nvmlgz=nlgz*0.25' -O ${file} ${file}
+  ncap2 -s 'nlgz=nvmlgz*3.0' -O ${file} ${file}
+  
+  # Reset the checksum for nvmlgz and nlgz
+  ncatted -a checksum,nlgz,d,,- "$file"
+  ncatted -a checksum,nvmlgz,d,,- "$file"
+
+done
+
+
+
+

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Check if netcdf file is provided as argument
+if [ $# -eq 0 ]; then
+    echo "Please provide the netcdf file as an argument"
+  exit 1
+fi
+
+
+file=$1
+#for file in ./ocean_*; do
+
+# Loop through all variables in the netcdf file
+for var in $(ncdump -h "$file" | grep "float\|double\|int\|short\|byte" | awk -F'[ (]' '{print $2}'); do
+  # Check if variable has the attribute "checksum"
+  if ncdump -h "$file" | grep -q "$var:checksum"; then
+    # Delete the attribute "checksum"
+    ncatted -a checksum,${var},d,,- "$file"
+    echo "Attribute 'checksum' deleted from variable '$var'"
+  fi
+done
+
+#done

@@ -1,0 +1,112 @@
+#!/bin/bash -l
+#SBATCH --job-name="COBALTv2"
+#SBATCH --account="sm88"
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=aaron.wienkers@unibe.ch
+#SBATCH --time=06:00:00
+#SBATCH --nodes=6
+#SBATCH --ntasks-per-core=1
+#SBATCH --partition=normal
+#SBATCH --constraint=mc
+
+#################################################
+# Production Batch Script to Run Modified ESM2M #
+# A. Wienkers 2023                              #
+#################################################
+
+# Setup Environment
+module purge
+source /opt/cray/pe/cpe/21.12/restore_lmod_system_defaults.sh
+module load cray
+module switch PrgEnv-cray PrgEnv-intel
+module unload cray-libsci
+module load cray-hdf5-parallel
+module load cray-netcdf-hdf5parallel
+export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+export KMP_STACKSIZE=512m
+export NC_BLKSZ=1M
+export F_UFMTENDIAN=big
+
+# Define the Threading Layout
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+
+# Setup Execution Variables
+workDir=${PWD}
+codeDir=${HOME}/ESM2M
+inputDir=${workDir}/INPUT
+executable=${PWD}/ESM2M_prod.x
+run_prog=srun
+
+## Set the Stacksize to Unlimited
+ulimit unlimited
+ulimit -S -s unlimited
+ulimit -S -c unlimited
+
+## Write Out Useful Job Stats
+echo "SLURM JOB ID: $SLURM_JOB_ID"
+echo "Submitted within $SLURM_SUBMIT_DIR"
+echo "Requested $SLURM_JOB_NUM_NODES Nodes"
+echo -e "\n"
+
+## Clean Up Previous Job Script
+for file in slurm-*.out; do
+    if [ $file != slurm-${SLURM_JOB_ID}.out ] && [ $file != slurm-postprocess.out ]; then rm $file; fi
+done
+
+
+## Execute the Model in the workDir
+echo "---- Initiating ESM2M Run on `date` ----"
+cd ${workDir}
+${run_prog}     --nodes=1   --ntasks=30     --cpus-per-task=4 --export=ALL,OMP_NUM_THREADS=4 --hint=nomultithread   ${executable} : \
+                --nodes=5   --ntasks=622    --cpus-per-task=1 --export=ALL,OMP_NUM_THREADS=1 --hint=nomultithread   ${executable} 
+
+if [ $? != 0 ]; then
+    echo "ERROR: Model failed to run to completion, at `date`"
+    exit 1
+fi
+wait
+
+
+## Copy Outputs to Temporary Location and Process while the next run starts
+cd ${workDir}
+
+# Generate file date names
+export time_stamp=${codeDir}/bin/time_stamp.csh
+begindate=`${time_stamp} -t "." -bf digital`
+enddate=`${time_stamp} -t "." -ef digital`
+period=${begindate}"_to_"${enddate}
+dataDir=${workDir}/RAW/${period}
+restartDir=${workDir}/RESTART/${period}
+
+mkdir -p ${dataDir}
+mv ocean_* atmos_* land_* ice* ${dataDir}
+mv slurm-${SLURM_JOB_ID}.out logfile* diag_integral.out stocks.out time_stamp.out ${dataDir}
+cp batch* *table ESM2M_* input.nml ${dataDir}
+
+# Move New Restart Files to INPUT directory
+cp batch* *table ESM2M_* input.nml ${workDir}/RESTART
+mkdir ${restartDir}
+cd ${workDir}/RESTART
+wait
+resfiles=$(find . -maxdepth 1 -type f | grep -v 'restart.tar')
+cp ${resfiles} ${restartDir}
+wait
+mv ${resfiles} ${inputDir}
+wait
+mkdir -p ${workDir}/RESTART/UNTAR
+mv ${restartDir} ${workDir}/RESTART/UNTAR/
+cd ${inputDir}
+touch *
+# Ensure there's no INPUT file repeats (i.e. previously combined files)
+for file in $(ls *.nc.0000); do
+  if [ -f ${file%.0000} ]; then
+    echo "Removing old combined file: ${file%.0000}"
+    rm -f ${file%.0000}
+  fi
+done
+
+## Submit Post-processing Script
+cd ${workDir}
+sbatch --export=period=${period}  batchsub_post
+

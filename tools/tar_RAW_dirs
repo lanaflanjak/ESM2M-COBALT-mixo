@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## TAR up all of the RAW directories
+for dir in $(find ./*01 -maxdepth 1 -type d); do
+   tar -cvf "${dir}.tar" "$dir" && rm -r "$dir"
+ done
+
+

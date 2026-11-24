@@ -1,0 +1,110 @@
+#!/bin/bash
+
+###################################################################################
+# AFW2023: 
+# Script to allow interchangeability across machines/configurations
+# Combines all restarts, patches the ice_model.res.nc file, and removes checksums
+###################################################################################
+
+# Combine All Restart Files
+combine_restarts
+echo "Combined all restarts"
+echo ""
+
+# Patch surface 273. in ice_model.res.nc
+ncap2=/apps/pilatus/UES/jenkins/1.4.0/software/NCO/5.0.1-cpeGNU-22.05/bin/ncap2
+#ncap2=/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/NCO/5.0.4-CrayGNU-21.09/bin/ncap2
+
+ncap2 -s "where('t_surf'==273.0) 't_surf'=0.0" -O ./ice_model.res.nc ./ice_model.res.nc
+echo "Patched ice_model.res.nc values in t_surf"
+echo ""
+
+
+# Fix all 1e36 fill values in ocean_*
+for file in ./ocean*.res.nc; do
+  echo "Opening file ${file}"
+
+  # Loop through all variables in the netcdf file
+  for var in $(ncdump -h "$file" | grep "float \|double \|int \|short \|byte " | awk -F'[ (]' '{print $2}'); do
+    # Get missing value
+    if ncdump -h "$file" | grep "${var}(" | grep -q 'zaxis_1'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1  -d zaxis_1,0 -d Time,0 "${file}" | awk '{print $1}')
+    elif ncdump -h "$file" | grep "${var}(" | grep -q 'zaxis_2'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1  -d zaxis_2,0 -d Time,0 "${file}" | awk '{print $1}')
+    elif ncdump -h "$file" | grep "${var}(" | grep -q 'xaxis_1'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1 -d Time,0  "${file}" | awk '{print $1}')
+    else
+      missing_value=0.0
+    fi
+    if ! [[ $missing_value =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        echo "     ${missing_value} is not numeric, setting to 0.0"
+    	missing_value=0.0
+    else
+        echo "     Using missing value of ${missing_value}"
+    fi
+    #missing_value=120.0
+    ncap2 -s "where(${var}>1.0e+35) ${var}=${missing_value}" -O ${file} ${file}
+    echo "Patched 1e36 values in variable '$var'"
+
+  done
+
+done
+
+
+# Fix all 0.0 leftover mask items in particular restarts
+echo ""
+echo "Patching leftover 0.0s in ocean restarts" 
+echo ""
+
+missing_value=$(ncks -s '%10.14f' -C -H -v "rossby_radius" -d xaxis_1,100 -d yaxis_1,1 -d Time,0 "ocean_neutral.res.nc" | awk '{print $1}')
+ncap2 -s "where('rossby_radius'==0.0) 'rossby_radius'=${missing_value}" -O ./ocean_neutral.res.nc ./ocean_neutral.res.nc
+echo "Patched ocean_neutral.res.nc values in rossby_radius with ${missing_value}"
+
+missing_value=$(ncks -s '%10.14f' -C -H -v "htotal" -d xaxis_1,100 -d yaxis_1,1 -d zaxis_1,0 -d Time,0 "ocean_cobalt.res.nc" | awk '{print $1}')
+ncap2 -s "where('htotal'==0.0) 'htotal'=${missing_value}" -O ./ocean_cobalt.res.nc ./ocean_cobalt.res.nc
+echo "Patched ocean_cobalt.res.nc values in htotal with ${missing_value}"
+
+
+for file in ./{ocean_thickness.res.nc,ocean_cobalt_airsea_flux.res.nc,ocean_density.res.nc}; do
+  echo "Opening file ${file}"
+
+  # Loop through all variables in the netcdf file
+  for var in $(ncdump -h "$file" | grep "float \|double \|int \|short \|byte " | awk -F'[ (]' '{print $2}'); do
+    # Get missing value
+    if ncdump -h "$file" | grep "${var}(" | grep -q 'zaxis_1'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1  -d zaxis_1,0 -d Time,0 "${file}" | awk '{print $1}')
+    elif ncdump -h "$file" | grep "${var}(" | grep -q 'zaxis_2'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1  -d zaxis_2,0 -d Time,0 "${file}" | awk '{print $1}')
+    elif ncdump -h "$file" | grep "${var}(" | grep -q 'xaxis_1'; then
+      missing_value=$(ncks -s '%10.14f' -C -H -v "${var}" -d xaxis_1,100 -d yaxis_1,1 -d Time,0  "${file}" | awk '{print $1}')
+    else
+      missing_value=0.0
+    fi
+    if ! [[ $missing_value =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        echo "     ${missing_value} is not numeric, setting to 0.0"
+    	missing_value=0.0
+    fi
+    ncap2 -s "where(${var}==0.0) ${var}=${missing_value}" -O ${file} ${file}
+    echo "Patched 0.0 value to ${missing_value} in '$var'"
+
+  done
+
+done
+
+
+
+
+# Remove Checksums
+for file in ./{ocean_*,ice_model.res.nc}; do
+
+  # Loop through all variables in the netcdf file
+  for var in $(ncdump -h "$file" | grep "float\|double\|int\|short\|byte" | awk -F'[ (]' '{print $2}'); do
+    # Check if variable has the attribute "checksum"
+    if ncdump -h "$file" | grep -q "$var:checksum"; then
+      # Delete the attribute "checksum"
+      ncatted -a checksum,${var},d,,- "$file"
+      echo "Attribute 'checksum' deleted from variable '$var'"
+    fi
+  done
+done
+

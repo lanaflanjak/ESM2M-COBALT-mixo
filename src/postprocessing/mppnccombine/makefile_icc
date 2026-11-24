@@ -1,0 +1,16 @@
+# Makefile for the "mppnccombine" program
+#
+# Written by Hans Vahlenkamp (Hans.Vahlenkamp)
+# Geophysical Fluid Dynamics Laboratory / NOAA
+# Princeton Forrestal Campus
+# Last updated: 05/15/08
+
+SOURCES = mppnccombine.c
+OBJECTS = mppnccombine.o
+CC = cc
+CFLAGS = -D__IFC -traceback
+LFLAGS = 
+LIBS = 
+
+mppnccombine: $(OBJECTS)
+	$(CC) $(CFLAGS) -o mppnccombine -s $(OBJECTS) $(LFLAGS) $(LIBS)

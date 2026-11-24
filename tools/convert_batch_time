@@ -1,0 +1,13 @@
+#!/bin/bash
+
+sed -i 's/time=08:00:00/time=10:00:00/g' batchsub_prod
+sed -i 's/???????/[0-9]*/g' batchsub_post
+sed -i 's/module load PrgEnv-intel/module switch PrgEnv-cray PrgEnv-intel/g' batchsub_post
+
+
+sed -i 's/export archiveDir/#export archiveDir/g' batchsub_post
+sed -i 's/export expName/#export expName/g' batchsub_post
+sed -i 's/$globus transfer/#$globus transfer/g' batchsub_post
+sed -i 's/--label/#--label/g' batchsub_post
+sed -i 's/--sync-level/#--sync-level/g' batchsub_post
+sed -i 's/--batch/#--batch/g' batchsub_post

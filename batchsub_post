@@ -1,0 +1,105 @@
+#!/bin/bash -l
+#SBATCH --job-name="ESM2M Post"
+#SBATCH --account="sm88"
+#SBATCH --output=slurm-postprocess.out
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=aaron.wienkers@unibe.ch
+#SBATCH --time=02:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-core=1
+#SBATCH --partition=normal
+#SBATCH --constraint=mc
+
+##########################################
+# Post-processing Batch Script for ESM2M #
+# A. Wienkers 2023                       #
+##########################################
+
+# Setup Environment
+module purge
+source /opt/cray/pe/cpe/21.12/restore_lmod_system_defaults.sh
+module load cray
+module switch PrgEnv-cray PrgEnv-intel
+module unload cray-libsci
+module load cray-hdf5-parallel
+module load cray-netcdf-hdf5parallel
+# PMI Fix for Eiger
+export PMI_NO_FORK=1
+export PMI_NO_PREINITIALIZE=1
+export PMI_MMAP_SYNC_WAIT_TIME=300
+#
+export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+export KMP_STACKSIZE=512m
+export NC_BLKSZ=1M
+export F_UFMTENDIAN=big
+
+## Set the Stacksize to Unlimited
+ulimit unlimited
+ulimit -S -s unlimited
+ulimit -S -c unlimited
+
+echo "--------------------------------"
+echo "------- Post-Processing --------"
+echo "--------------------------------"
+echo "---- Started on `date` ----"
+
+# Setup Execution Variables (NOTE: period is passed with the job submission)
+baseDir=${PWD}
+rawDir=${baseDir}/RAW/${period}
+enddate=$(echo $period | cut -d'_' -f3)
+
+export mppnccombine=${HOME}/opt/bin/mppnccombine
+export globus=/users/awienker/opt/anaconda3/bin/globus
+
+## Combine output files & archive in OUTPUT directory
+#   While we're at it, compress (deflate & shuffle)
+mkdir -p ${baseDir}/OUTPUT/${period}
+cd ${rawDir}
+for file in $(ls *.nc.0000); do
+    $mppnccombine -k 20 -n4 -d 1 -s  ${baseDir}/OUTPUT/${period}/${file%.0000}  ${file%.0000}.???? &
+done #2> error.log
+cp *.nc ${baseDir}/OUTPUT/${period}/  # Catch the ones that don't need combining
+
+## Tar the restart files
+cd ${baseDir}/RESTART/UNTAR/${period}
+resfiles=$(ls -I '*restart.tar')
+tar -cf ${baseDir}/RESTART/${enddate}_restart.tar $resfiles 
+
+## Wait for mppnccombine and tar
+wait
+
+## Organise the log files
+cd ${rawDir}
+mkdir -p ${baseDir}/LOGS/${period}
+cp logfile.000000.out ${baseDir}/LOGS/${period}/logfile.atm.out
+cp logfile.000030.out ${baseDir}/LOGS/${period}/logfile.ocn.out
+cp ${baseDir}/slurm-postprocess.out ${rawDir}
+cp slurm-postprocess.out ${baseDir}/LOGS/${period}/postprocess.out
+cp slurm-???????.out  ${baseDir}/LOGS/${period}/slurm.out
+cp stocks.out time_stamp.out diag_integral.out ${baseDir}/LOGS/${period}
+cp batchsub* *table input.nml ${baseDir}/LOGS/${period}/
+
+#### Clean up RAW *if* we TARRED it #####
+# rm -r ${rawDir}
+wait
+
+cd ${baseDir}
+echo "NOTE: Gracefully finished everything on `date`"
+sleep 10
+
+
+## Use Globus CLI to Transfer to ClimateStor
+export archiveDir="/storage/climatestor/MOANA/wienkers/"
+export expName=${PWD/\/capstor\/scratch\/cscs\/awienker\/}
+echo -e "RESTART RESTART -r  \nINPUT INPUT -r  \nLOGS LOGS -r  \nOUTPUT/${period} OUTPUT/${period} -r" > ${baseDir}/LOGS/${period}/globus_transfer
+$globus transfer $GLOBUS_CSCS:${baseDir}/  $GLOBUS_CS2:${archiveDir}/${expName}/ \
+     --label ${expName}_T_${period}  \
+     --sync-level checksum \
+     --batch ${baseDir}/LOGS/${period}/globus_transfer
+
+
+echo "NOTE: Submitted Globus Transfers on `date`"
+sleep 10
+
+exit 0
+

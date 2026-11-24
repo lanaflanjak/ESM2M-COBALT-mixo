@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Adds New Fields for the New Lipid Model:  cvmlgz_s & cdet_s & cdet_s_btf
+
+#PATH="/capstor/apps/cscs/eiger/easybuild/software/NCO/5.0.1-cpeGNU-22.05/bin/:$PATH"
+#ncap2=/capstor/apps/cscs/eiger/easybuild/software/NCO/5.0.1-cpeGNU-22.05/bin/ncap2
+#ncatted
+#ncap2=/apps/daint/UES/jenkins/7.0.UP03/21.09/daint-gpu/software/NCO/5.0.4-CrayGNU-21.09/bin/ncap2
+
+for file in ./ocean_cobalt.res.nc*; do
+  echo "Opening file ${file}" 
+  ncap2 -s 'cvmlgz_s=nlgz*0.0' -s 'cdet_s=nlgz*0.0' -s 'cdet_s_btf=nlgz*0.0' -O ${file} ${file}
+  
+  # Reset the checksums
+  ncatted -a checksum,cvmlgz_s,d,,- "$file"
+  ncatted -a checksum,cdet_s,d,,- "$file"
+  ncatted -a checksum,cdet_s_btf,d,,- "$file"
+done
+
+
+
+

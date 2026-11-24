@@ -1,0 +1,54 @@
+#!/bin/bash
+
+## When something goes wrong with the post-job processing script this can force fix the OUTPUTS (and copy to climatestor)
+#   It needs to point at the *_output_raw.tar file.
+
+# NOTES:  
+#  - Run it from the main working directory
+codeDir=${HOME}/ESM2M
+mppnccombine=${HOME}/opt/bin/mppnccombine
+
+baseDir=${PWD}
+
+
+# Get the input file name from the command line
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <input_file>"
+    exit 1
+fi
+
+tar_file=$1
+echo "Processing $tar_file"
+
+# Extract the directory name from the tar file name
+#  (e.g. ./TEMP/1740.01.01_to_1750.01.01_output_raw.tar -> 1740.01.01_to_1750.01.01)
+period=$(basename $tar_file | sed 's/_output_raw.tar//')
+echo "Time period: $period"
+
+# Extract the tar file into a new directory
+mkdir -p ${baseDir}/FIX/${period}
+tar -xf $tar_file -C ${baseDir}/FIX/${period}
+echo "Extracted $tar_file to ${baseDir}/FIX/${period}"
+
+# Combine the output files
+cd ${baseDir}/FIX/${period}
+for file in $(ls *.nc.0000); do
+    $mppnccombine -r  ${file%.0000} ${file%.0000}.???? &
+    echo "Combining $file"
+done
+wait
+echo "Combined output files"
+
+
+# ## Submit Transfer/Archive Script
+# ## Use Globus CLI Instead
+# alias globus=/users/awienker/opt/anaconda3/bin/globus
+# archiveDir="/storage/climatestor/MOANA/wienkers/"
+# expName=${baseDir/\/capstor\/scratch\/cscs\/awienker\/}
+# # Transfer only the Fixed Output files
+# globus transfer $GLOBUS_CSCS:${baseDir}/FIX/${period}  $GLOBUS_CS2:${archiveDir}/${expName}/FIX/ \
+#       --label ${expName}_FIX_${period}  \
+#       --sync-level checksum
+
+
+

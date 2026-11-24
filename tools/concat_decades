@@ -1,0 +1,31 @@
+#!/bin/bash
+
+out_files=""
+
+out_dirs=$(ls -d *_to_*/)
+if [ -d decades ]; then rm -r decades; fi
+mkdir decades
+mkdir temp
+
+i=0
+for dir in ${out_dirs}; do
+  echo "---------Working on ${dir}---------"
+  cd ${dir}
+  out_files=$(ls *.nc)
+  for file in ${out_files}; do
+    echo "Aligning time of ${file}...."
+    ncks -O --mk_rec_dmn time $file ../temp/${file}${i} &
+  done
+  wait
+  cd ../
+  ((i++))
+done
+
+echo "---------Ready to Concatenate all files---------"
+for file in ${out_files}; do
+  echo "Concatenating all $file records..."
+  ncrcat -O temp/${file}* decades/${file}
+done
+
+rm -r temp
+

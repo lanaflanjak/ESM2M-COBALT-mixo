@@ -1,0 +1,24 @@
+#!/bin/bash
+
+## Fix input.nml file
+
+cp input.nml eiger_input.nml
+
+sed -i 's/ocean_npes[[:space:]]*=[[:space:]]*622/ocean_npes = 318/g' input.nml
+#grep ocean_npes input.nml
+
+sed -i 's/atmos_nthreads[[:space:]]*=[[:space:]]*4/atmos_nthreads = 2/g' input.nml
+#grep atmos_nthreads input.nml
+
+sed -i '/layout[[:space:]]*=[[:space:]]*33,[[:space:]]*22/c\       layout=22,16' input.nml
+#grep 'layout=22' input.nml
+
+sed -i '/io_layout[[:space:]]*=[[:space:]]*11,[[:space:]]*11/c\       io_layout=11,8' input.nml
+#grep 'io_layout=11' input.nml
+
+sed -i '/mask_table[[:space:]]*=[[:space:]]*.*/c\       mask_table = '\''INPUT/mask_table.34.22x16'\''' input.nml
+#grep mask_table input.nml
+
+
+diff eiger_input.nml input.nml
+

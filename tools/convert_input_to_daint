@@ -1,0 +1,39 @@
+#!/bin/bash
+
+mkdir -p archive_eiger
+
+
+## Copy batchsub files
+
+mv batchsub* archive_eiger
+cp ${HOME}/ESM2M/*_daint ./
+mv batchsub_prod_daint batchsub_prod
+mv batchsub_post_daint batchsub_post
+
+## Copy executable
+
+cp ${HOME}/ESM2M/ESM2M_prod.x ./
+
+
+## Fix input.nml file
+
+cp input.nml archive_eiger
+
+sed -i 's/ocean_npes[[:space:]]*=[[:space:]]*622/ocean_npes = 318/g' input.nml
+#grep ocean_npes input.nml
+
+sed -i 's/atmos_nthreads[[:space:]]*=[[:space:]]*4/atmos_nthreads = 2/g' input.nml
+#grep atmos_nthreads input.nml
+
+sed -i '/layout[[:space:]]*=[[:space:]]*33,[[:space:]]*22/c\       layout=22,16' input.nml
+#grep 'layout=22' input.nml
+
+sed -i '/io_layout[[:space:]]*=[[:space:]]*11,[[:space:]]*11/c\       io_layout=11,8' input.nml
+#grep 'io_layout=11' input.nml
+
+sed -i '/mask_table[[:space:]]*=[[:space:]]*.*/c\       mask_table = '\''INPUT/mask_table.34.22x16'\''' input.nml
+#grep mask_table input.nml
+
+
+diff archive_eiger/input.nml input.nml
+

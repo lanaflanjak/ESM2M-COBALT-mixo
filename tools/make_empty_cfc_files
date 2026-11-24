@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# AFW2024
+# Makes new fields for CFCs starting from the end of landuse spinup
+# NOTE: Updating to COBALTv2 & MOM6 CFCs:  cfc_* --> cfc*
+
+## ocean_cfc.res.nc:
+
+# Extract only the 'temp' variable from the original file
+ncks -v temp ocean_temp_salt.res.nc temp.nc
+
+# Use ncap2 to create new variables based on 'temp' but multiplied by 0.0
+ncap2 -O -s 'cfc11=temp*0.0' temp.nc ocean_cfc.res.nc
+ncap2 -O -s 'cfc12=temp*0.0' ocean_cfc.res.nc ocean_cfc.res.nc
+ncap2 -O -s 'cfc113=temp*0.0' ocean_cfc.res.nc ocean_cfc.res.nc
+ncap2 -O -s 'cfc22=temp*0.0' ocean_cfc.res.nc ocean_cfc.res.nc
+
+# Remove the 'temp' variable
+ncks -O -x -v temp ocean_cfc.res.nc ocean_cfc.res.nc
+
+# Remove the temporary file
+rm temp.nc
+
+
+
+
+## ocean_cfc_airsea_flux.res.nc:
+
+# Extract only the 'o2_flux_alpha_ocn' variable from the original file
+ncks -v o2_flux_alpha_ocn ocean_cobalt_airsea_flux.res.nc temp.nc
+
+# Use ncap2 to create new variables based on 'o2_flux_alpha_ocn' but multiplied by 0.0 
+ncap2 -O -s 'ocn_alpha_cfc11_flux=o2_flux_alpha_ocn*0.0' temp.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_alpha_cfc12_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_alpha_cfc113_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_alpha_cfc22_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_csurf_cfc11_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_csurf_cfc12_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_csurf_cfc113_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_csurf_cfc22_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_sc_no_cfc11_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_sc_no_cfc12_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_sc_no_cfc113_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+ncap2 -O -s 'ocn_sc_no_cfc22_flux=o2_flux_alpha_ocn*0.0' ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+
+# Remove the 'o2_flux_alpha_ocn' variable
+ncks -O -x -v o2_flux_alpha_ocn ocean_cfc_airsea_flux.res.nc ocean_cfc_airsea_flux.res.nc
+
+# Remove the temporary file
+rm temp.nc
+
+
+
+
+## ice_cfc.res.nc:
+
+# Extract only the 'o2_flux_alpha_ocn' variable from the original file
+ncks -v o2_flux_alpha_ocn ocean_cobalt_airsea_flux.res.nc temp.nc
+
+# Use ncap2 to create new variables based on 'o2_flux_alpha_ocn' but multiplied by 0.0
+ncap2 -O -s 'ice_flux_cfc11_flux=o2_flux_alpha_ocn*0.0' temp.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_flux_cfc12_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_flux_cfc113_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_flux_cfc22_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_deltap_cfc11_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_deltap_cfc12_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_deltap_cfc113_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_deltap_cfc22_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_kw_cfc11_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_kw_cfc12_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_kw_cfc113_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+ncap2 -O -s 'ice_kw_cfc22_flux=o2_flux_alpha_ocn*0.0' ice_cfc.res.nc ice_cfc.res.nc
+
+# Remove the 'o2_flux_alpha_ocn' variable
+ncks -O -x -v o2_flux_alpha_ocn ice_cfc.res.nc ice_cfc.res.nc
+
+# Remove the temporary file
+rm temp.nc
+
+
+
+
+## ocmip2_cfc.res.nc:
+
+# Extract only the 'temp' variable from the original file
+ncks -v temp ocean_temp_salt.res.nc temp.nc
+
+# Use ncap2 to create new variables based on 'temp' but multiplied by 0.0
+ncap2 -O -s 'cfc11=temp*0.0' temp.nc ocmip2_cfc.res.nc
+ncap2 -O -s 'cfc12=temp*0.0' ocmip2_cfc.res.nc ocmip2_cfc.res.nc
+
+# Remove the 'temp' variable
+ncks -O -x -v temp ocmip2_cfc.res.nc ocmip2_cfc.res.nc
+
+# Remove the temporary file
+rm temp.nc
+

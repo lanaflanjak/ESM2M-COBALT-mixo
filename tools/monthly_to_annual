@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Converts monthly outputs to annual outputs
+outdir="./annual"
+
+if [ ! -d "$outdir" ]; then
+  mkdir -p "$outdir"
+fi
+
+files=$1 # To combine
+
+for file in $files; do
+  cdo -yearmean ./${file} ${outdir}/${file} &
+done

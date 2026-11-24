@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Check if a year is provided
+if [ $# -eq 0 ]; then
+    echo "No year provided. Usage: ./script.sh YEAR"
+    exit 1
+fi
+
+
+# Set the base directory and globus command
+export baseDir=${PWD}
+export globus=/users/awienker/opt/anaconda3/bin/globus
+
+# Set the other variables
+export archiveDir="/storage/climatestor/MOANA/wienkers/"
+export expName=${PWD/\/capstor\/scratch\/cscs\/awienker\/}
+
+
+year=$1
+# Iterate over the years until OUTPUT/$period does not exist
+while [ -d OUTPUT/${year}.01.01_to_$((10+$year)).01.01 ]; do
+    
+    # Set the period to the input year in this format:
+    # 1920 —> 1920.01.01_to_1930.01.01
+    period="${year}.01.01_to_$((10+$year)).01.01"
+
+    echo "Transferring $period"
+
+    # Restart file is in the format 1920 —> 1930.01.01_restart.tar
+    restart_file="$((10+$year)).01.01_restart.tar"
+
+    # Create the globus transfer file
+    echo -e "LOGS/${period} LOGS/${period} -r  \nOUTPUT/${period} OUTPUT/${period} -r" > ${baseDir}/LOGS/${period}/globus_transfer
+
+    # Run the globus transfer
+    $globus transfer $GLOBUS_CSCS:${baseDir}/  $GLOBUS_CS2:${archiveDir}/${expName}/ \
+        --label ${expName}_T_${period}  \
+        --sync-level checksum \
+        --batch ${baseDir}/LOGS/${period}/globus_transfer
+
+
+    year=$((10+$year))
+    sleep 10
+done
+
+
+# Copy RESTART separately
+echo "Transferring RESTART"
+
+echo -e "RESTART RESTART -r" > ${baseDir}/LOGS/globus_transfer_restart
+
+# Run the globus transfer
+$globus transfer $GLOBUS_CSCS:${baseDir}/  $GLOBUS_CS2:${archiveDir}/${expName}/ \
+    --label ${expName}_T_RESTARTS  \
+    --sync-level checksum \
+    --batch ${baseDir}/LOGS/globus_transfer_restart
+
+
+
+
+
+

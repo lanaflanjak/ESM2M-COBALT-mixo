@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for file in ./OCN*/slurm*; do
+  # Output the number following "Main loop" in the file
+  echo "$file: $(grep -oP '(?<=Main loop                      ).{15}' "$file")"
+done
