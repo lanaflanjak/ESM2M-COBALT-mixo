@@ -1,0 +1,40 @@
+! Mixotroph parameters for &generic_COBALT_nml (input.nml).
+! Copy the lines you want to change into the run's &generic_COBALT_nml block.
+! Any variable not listed keeps the default = the value used in the paper runs.
+! Units: rates d-1, half-saturations mol kg-1 (0.5e-6 = 0.5 umol kg-1), Fe quotas umol Fe (mol C)-1.
+!
+! Column "paper" = current default, "medium" = COBALTv3 medium phytoplankton (Stock et al. 2025 table).
+
+ &generic_COBALT_nml
+!                                   paper        medium
+       mixo_P_C_max    = 1.1      ! 1.1          1.1
+       mixo_alpha      = 1.2e-5   ! 1.2e-5       1.2e-5   (low/high 0.8e-5 / 1.6e-5)
+       mixo_thetamax   = 0.045    ! 0.045        0.045
+       mixo_bresp_auto = 0.03     ! 0.03         (v3 uses f_bresp = 0.01, a different formulation)
+       mixo_k_no3      = 1.0e-6   ! k_no3_small  1.0e-6   (paper run: unset or -1 -> follows k_no3_small = 0.5e-6)
+       mixo_k_nh4      = 2.0e-8   ! k_nh4_small  2.0e-8   (paper run: unset or -1 -> follows k_nh4_small = 1.0e-8)
+       mixo_k_po4      = 2.0e-8   ! 1.0e-8       2.0e-8
+       mixo_k_fed      = 8.0e-10  ! 1.0e-10      8.0e-10
+       mixo_k_fe_2_c   = 4.0      ! 3.0          4.0
+       mixo_fe_2_c_max = 250.0    ! 50.0         250.0
+       mixo_p_2_n      = 0.0556   ! 0.05 (1:20)  0.0556 (1:18)
+       mixo_psi_static = 0.5
+       mixo_eta        = 0.9
+!      heterotrophy (Sheu et al. / small zooplankton)
+       mixo_imax         = 1.74
+       mixo_ki           = 1.25e-6
+       mixo_ktemp        = 0.063
+       mixo_gge_max      = 0.4
+       mixo_bresp_hetero = 0.025
+       mixo_ipa_smp      = 0.25
+       mixo_ipa_bact     = 1.0
+!      partitioning of ingestion; N: det+ldon+sldon+srdon+gge_max+nh4 must = 1 (0.1+0.14+0.04+0.02+0.4+0.3)
+       mixo_phi_det   = 0.10
+       mixo_phi_nh4   = 0.30
+       mixo_phi_po4   = 0.30
+!      losses
+       mixo_agg         = 0.1e6
+       mixo_frac_mu_agg = 0.25
+       mixo_vir         = 0.2e6
+       mixo_exu         = 0.13
+/

@@ -205,6 +205,41 @@ module generic_COBALT
   real    :: imbalance_tolerance=1.0e-10 !the tolerance for non-conservation in C,N,P,Sc,Fe
   real    :: mixo_eta = 0.9        ! mixotroph inefficiency factor default
   real    :: mixo_nu  = 0.0        ! rate of change of psi default
+  ! --- Mixotroph parameters settable in &generic_COBALT_nml (defaults = values used in the paper runs) ---
+  ! Units are those of the manuscript tables; conversions to model units are done where the parameter is set.
+  ! A field_table entry of the same internal name (e.g. k_no3_Mx) still overrides the namelist value.
+  ! autotrophy
+  real    :: mixo_P_C_max    = 1.1      ! max photosynthetic rate at 0 C (d-1)
+  real    :: mixo_alpha      = 1.2e-5   ! Chl-specific initial P-I slope, before cfac (as in Stock et al. tables)
+  real    :: mixo_thetamax   = 0.045    ! max Chl:C (g Chl g C-1)
+  real    :: mixo_bresp_auto = 0.03     ! autotrophic basal respiration (d-1)
+  real    :: mixo_k_no3      = -1.0     ! NO3 half-saturation (mol kg-1); <0 = use k_no3_small (paper runs)
+  real    :: mixo_k_nh4      = -1.0     ! NH4 half-saturation (mol kg-1); <0 = use k_nh4_small (paper runs)
+  real    :: mixo_k_po4      = 1.0e-8   ! PO4 half-saturation (mol kg-1)
+  real    :: mixo_k_fed      = 1.0e-10  ! dissolved Fe half-saturation for uptake (mol kg-1)
+  real    :: mixo_k_fe_2_c   = 3.0      ! Fe:C quota half-saturation for Fe limitation (umol Fe mol C-1)
+  real    :: mixo_fe_2_c_max = 50.0     ! max Fe:C quota (umol Fe mol C-1)
+  real    :: mixo_p_2_n      = 1.0/20.0 ! fixed P:N (mol P mol N-1)
+  real    :: mixo_psi_static = 0.5      ! phototrophic allocation psi (used when mixo_nu = 0)
+  ! heterotrophy
+  real    :: mixo_imax         = 1.74     ! max ingestion rate at 0 C (d-1)
+  real    :: mixo_ki           = 1.25e-6  ! prey half-saturation (mol N kg-1)
+  real    :: mixo_ktemp        = 0.063    ! temperature coefficient of ingestion (C-1)
+  real    :: mixo_gge_max      = 0.4      ! max gross growth efficiency
+  real    :: mixo_bresp_hetero = 0.025    ! heterotrophic basal respiration (d-1)
+  real    :: mixo_ipa_smp  = 0.25, mixo_ipa_lgp = 0.0, mixo_ipa_diaz = 0.0  ! intrinsic prey preferences
+  real    :: mixo_ipa_smz  = 0.0,  mixo_ipa_mdz = 0.0, mixo_ipa_lgz  = 0.0
+  real    :: mixo_ipa_bact = 1.0,  mixo_ipa_det = 0.0, mixo_ipa_mx   = 0.0
+  ! partitioning of ingested material (N: det+ldon+sldon+srdon+gge_max+nh4 = 1; P likewise with po4)
+  real    :: mixo_phi_det   = 0.10
+  real    :: mixo_phi_ldon = 0.7*0.20,  mixo_phi_sldon = 0.2*0.20, mixo_phi_srdon = 0.1*0.20
+  real    :: mixo_phi_ldop = 0.65*0.20, mixo_phi_sldop = 0.2*0.20, mixo_phi_srdop = 0.15*0.20
+  real    :: mixo_phi_nh4   = 0.30,  mixo_phi_po4   = 0.30
+  ! losses
+  real    :: mixo_agg         = 0.1e6   ! aggregation (d-1 (mol N kg-1)-1)
+  real    :: mixo_frac_mu_agg = 0.25    ! growth fraction below which aggregation rises
+  real    :: mixo_vir         = 0.2e6   ! viral lysis (d-1 (mol N kg-1)-1)
+  real    :: mixo_exu         = 0.13    ! exudation (fraction of gross autotrophic uptake)
 
   integer :: scheme_no3_nh4_lim = 2 !1-Frost and Franzen (1992)
                                     !2-O'Neill
@@ -216,7 +251,15 @@ module generic_COBALT
   namelist /generic_COBALT_nml/ do_14c, co2_calc, debug, do_nh3_atm_ocean_exchange, scheme_nitrif, &
   k_nh4_small,k_nh4_large,k_nh4_diazo,scheme_no3_nh4_lim,k_no3_small,k_no3_large,k_no3_diazo, &
   o2_min_nit,k_o2_nit,irr_inhibit,k_nh3_nitrif,gamma_nitrif,imbalance_tolerance, &
-  mixo_eta, mixo_nu
+  mixo_eta, mixo_nu, &
+  mixo_P_C_max, mixo_alpha, mixo_thetamax, mixo_bresp_auto, mixo_k_no3, mixo_k_nh4, mixo_k_po4, mixo_k_fed, &
+  mixo_k_fe_2_c, mixo_fe_2_c_max, mixo_p_2_n, mixo_psi_static, &
+  mixo_imax, mixo_ki, mixo_ktemp, mixo_gge_max, mixo_bresp_hetero, &
+  mixo_ipa_smp, mixo_ipa_lgp, mixo_ipa_diaz, mixo_ipa_smz, mixo_ipa_mdz, mixo_ipa_lgz, &
+  mixo_ipa_bact, mixo_ipa_det, mixo_ipa_mx, &
+  mixo_phi_det, mixo_phi_ldon, mixo_phi_sldon, mixo_phi_srdon, mixo_phi_ldop, mixo_phi_sldop, mixo_phi_srdop, &
+  mixo_phi_nh4, mixo_phi_po4, &
+  mixo_agg, mixo_frac_mu_agg, mixo_vir, mixo_exu
 
   ! Declare phytoplankton, zooplankton and cobalt variable types, which contain
   ! the vast majority of all variables used in this module. 
@@ -6137,16 +6180,16 @@ write (stdlogunit, generic_COBALT_nml)
     ! Mixotroph Autotrophy Parameters 
     !-----------------------------------------------------------------------
     !
-    call g_tracer_add_param('k_fed_Mx', mixo(1)%k_fed,  1.0e-10)                 ! mol Fed kg-1
-    call g_tracer_add_param('k_nh4_Mx', mixo(1)%k_nh4,  k_nh4_small)                  ! mol NH4 kg-1
-    call g_tracer_add_param('k_no3_Mx', mixo(1)%k_no3,  k_no3_small)                  ! mol NO3 kg-1
-    call g_tracer_add_param('k_po4_Mx', mixo(1)%k_po4,  1.0e-8)                  ! mol PO4 kg-1
-    call g_tracer_add_param('k_fe_2_n_Mx',mixo(1)%k_fe_2_n, 3.0e-6*106.0/16.0)        ! mol Fe mol N-1
-    call g_tracer_add_param('fe_2_n_max_Mx',mixo(1)%fe_2_n_max, 50.e-6*106.0/16.0)     ! mol Fe mol N-1
-    call g_tracer_add_param('alpha_Mx', mixo(1)%alpha,  1.2e-5*2.77e18/6.022e17)      ! g C g Chl-1 m-2 J-1
-    call g_tracer_add_param('P_C_max_Mx', mixo(1)%P_C_max, 1.1/sperd)               ! s-1
-    call g_tracer_add_param('thetamax_Mx', mixo(1)%thetamax, 0.045)                    ! g Chl g C-1
-    call g_tracer_add_param('bresp_auto_Mx', mixo(1)%bresp_auto,0.03/sperd)                     ! sec-1 
+    call g_tracer_add_param('k_fed_Mx', mixo(1)%k_fed,  mixo_k_fed)                 ! mol Fed kg-1
+    call g_tracer_add_param('k_nh4_Mx', mixo(1)%k_nh4, merge(mixo_k_nh4, k_nh4_small, mixo_k_nh4 >= 0.0)) ! mol NH4 kg-1
+    call g_tracer_add_param('k_no3_Mx', mixo(1)%k_no3, merge(mixo_k_no3, k_no3_small, mixo_k_no3 >= 0.0)) ! mol NO3 kg-1
+    call g_tracer_add_param('k_po4_Mx', mixo(1)%k_po4,  mixo_k_po4)                  ! mol PO4 kg-1
+    call g_tracer_add_param('k_fe_2_n_Mx',mixo(1)%k_fe_2_n, mixo_k_fe_2_c/1.0e6*106.0/16.0)        ! mol Fe mol N-1
+    call g_tracer_add_param('fe_2_n_max_Mx',mixo(1)%fe_2_n_max, mixo_fe_2_c_max/1.0e6*106.0/16.0)     ! mol Fe mol N-1
+    call g_tracer_add_param('alpha_Mx', mixo(1)%alpha,  mixo_alpha*2.77e18/6.022e17)      ! g C g Chl-1 m-2 J-1
+    call g_tracer_add_param('P_C_max_Mx', mixo(1)%P_C_max, mixo_P_C_max/sperd)               ! s-1
+    call g_tracer_add_param('thetamax_Mx', mixo(1)%thetamax, mixo_thetamax)                    ! g Chl g C-1
+    call g_tracer_add_param('bresp_auto_Mx', mixo(1)%bresp_auto,mixo_bresp_auto/sperd)                     ! sec-1 
     !
     !-----------------------------------------------------------------------
     ! Nitrogen fixation inhibition parameters
@@ -6165,7 +6208,7 @@ write (stdlogunit, generic_COBALT_nml)
     call g_tracer_add_param('p_2_n_static_Di', phyto(DIAZO)%p_2_n_static,1.0/40.0 )         ! mol P mol N-1
     call g_tracer_add_param('p_2_n_static_Lg', phyto(LARGE)%p_2_n_static,1.0/12.0 )         ! mol P mol N-1
     call g_tracer_add_param('p_2_n_static_Sm', phyto(SMALL)%p_2_n_static,1.0/20.0 )         ! mol P mol N-1
-    call g_tracer_add_param('p_2_n_static_Mx', mixo(1)%p_2_n_static,1.0/20.0 )         ! mol P mol N-1
+    call g_tracer_add_param('p_2_n_static_Mx', mixo(1)%p_2_n_static,mixo_p_2_n)         ! mol P mol N-1
     call g_tracer_add_param('si_2_n_static_Lg', phyto(LARGE)%si_2_n_static, 2.0)            ! mol Si mol N-1
     call g_tracer_add_param('si_2_n_max_Lg', phyto(LARGE)%si_2_n_max, 3.0)                  ! mol Si mol N-1
     call g_tracer_add_param('ca_2_n_arag', cobalt%ca_2_n_arag, 0.030 * 106.0 / 16.0)        ! mol Ca mol N-1
@@ -6220,10 +6263,10 @@ write (stdlogunit, generic_COBALT_nml)
     ! Mixotroph Autotrophic Losses: Aggregation, Viral Lysis, Exudation  
     !-----------------------------------------------------------------------
     !
-    call g_tracer_add_param('agg_Mx',mixo(1)%agg,0.1*1e6 / sperd)           ! s-1 (mole N kg)-1
-    call g_tracer_add_param('frac_mu_agg_Mx',mixo(1)%frac_mu_agg,0.25)      ! none
-    call g_tracer_add_param('vir_Mx',mixo(1)%vir, 0.20*1e6/sperd )  ! s-1 (mole N kg)-1
-    call g_tracer_add_param('exu_Mx',mixo(1)%exu, 0.13) ! dimensionless (fraction of NPP)
+    call g_tracer_add_param('agg_Mx',mixo(1)%agg,mixo_agg / sperd)           ! s-1 (mole N kg)-1
+    call g_tracer_add_param('frac_mu_agg_Mx',mixo(1)%frac_mu_agg,mixo_frac_mu_agg)      ! none
+    call g_tracer_add_param('vir_Mx',mixo(1)%vir, mixo_vir/sperd)  ! s-1 (mole N kg)-1
+    call g_tracer_add_param('exu_Mx',mixo(1)%exu, mixo_exu) ! dimensionless (fraction of NPP)
     !
     !-----------------------------------------------------------------------
     ! Zooplankton ingestion parameterization and temperature dependence
@@ -6243,11 +6286,11 @@ write (stdlogunit, generic_COBALT_nml)
     ! Mixotroph ingestion and bioenergetics
     !-----------------------------------------------------------------------
     !
-    call g_tracer_add_param('imax_mx',mixo(1)%imax, 1.74 / sperd)              ! s-1
-    call g_tracer_add_param('ki_mx',mixo(1)%ki, 1.25e-6)                       ! moles N kg-1
-    call g_tracer_add_param('ktemp_mx',mixo(1)%ktemp, 0.063)                   ! C-1
-    call g_tracer_add_param('gge_max_mx',mixo(1)%gge_max, 0.4)                   ! dimensionless
-    call g_tracer_add_param('bresp_hetero_mx',mixo(1)%bresp_hetero, 0.025 / sperd)        ! s-1
+    call g_tracer_add_param('imax_mx',mixo(1)%imax, mixo_imax / sperd)              ! s-1
+    call g_tracer_add_param('ki_mx',mixo(1)%ki, mixo_ki)                       ! moles N kg-1
+    call g_tracer_add_param('ktemp_mx',mixo(1)%ktemp, mixo_ktemp)                   ! C-1
+    call g_tracer_add_param('gge_max_mx',mixo(1)%gge_max, mixo_gge_max)                   ! dimensionless
+    call g_tracer_add_param('bresp_hetero_mx',mixo(1)%bresp_hetero, mixo_bresp_hetero / sperd)        ! s-1
     !
     !-----------------------------------------------------------------------
     ! Bacterial growth and uptake parameters
@@ -6274,15 +6317,15 @@ write (stdlogunit, generic_COBALT_nml)
     call g_tracer_add_param('mswitch_lgz',zoo(3)%mswitch, 2.0)          ! dimensionless
     call g_tracer_add_param('mswitch_mx',mixo(1)%mswitch, 2.0)          ! dimensionless
     ! innate prey availability for mixotrophs
-    call g_tracer_add_param('mx_ipa_smp',mixo(1)%ipa_smp, 0.25)    ! dimensionless
-    call g_tracer_add_param('mx_ipa_lgp',mixo(1)%ipa_lgp, 0.0)          ! dimensionless
-    call g_tracer_add_param('mx_ipa_diaz',mixo(1)%ipa_diaz,0.0)         ! dimensionless
-    call g_tracer_add_param('mx_ipa_mx',mixo(1)%ipa_mx,0.0)         ! dimensionless
-    call g_tracer_add_param('mx_ipa_smz',mixo(1)%ipa_smz, 0.0)          ! dimensionless
-    call g_tracer_add_param('mx_ipa_mdz',mixo(1)%ipa_mdz, 0.0)          ! dimensionless
-    call g_tracer_add_param('mx_ipa_lgz',mixo(1)%ipa_lgz, 0.0)          ! dimensionless
-    call g_tracer_add_param('mx_ipa_bact',mixo(1)%ipa_bact,1.0)         ! dimensionless
-    call g_tracer_add_param('mx_ipa_det',mixo(1)%ipa_det, 0.0)          ! dimensionless
+    call g_tracer_add_param('mx_ipa_smp',mixo(1)%ipa_smp, mixo_ipa_smp)    ! dimensionless
+    call g_tracer_add_param('mx_ipa_lgp',mixo(1)%ipa_lgp, mixo_ipa_lgp)          ! dimensionless
+    call g_tracer_add_param('mx_ipa_diaz',mixo(1)%ipa_diaz,mixo_ipa_diaz)         ! dimensionless
+    call g_tracer_add_param('mx_ipa_mx',mixo(1)%ipa_mx,mixo_ipa_mx)         ! dimensionless
+    call g_tracer_add_param('mx_ipa_smz',mixo(1)%ipa_smz, mixo_ipa_smz)          ! dimensionless
+    call g_tracer_add_param('mx_ipa_mdz',mixo(1)%ipa_mdz, mixo_ipa_mdz)          ! dimensionless
+    call g_tracer_add_param('mx_ipa_lgz',mixo(1)%ipa_lgz, mixo_ipa_lgz)          ! dimensionless
+    call g_tracer_add_param('mx_ipa_bact',mixo(1)%ipa_bact,mixo_ipa_bact)         ! dimensionless
+    call g_tracer_add_param('mx_ipa_det',mixo(1)%ipa_det, mixo_ipa_det)          ! dimensionless
     ! innate prey availability for small zooplankton 
     call g_tracer_add_param('smz_ipa_smp',zoo(1)%ipa_smp, 1.0)    ! dimensionless
     call g_tracer_add_param('smz_ipa_lgp',zoo(1)%ipa_lgp, 0.0)          ! dimensionless
@@ -6368,15 +6411,15 @@ write (stdlogunit, generic_COBALT_nml)
     ! Partitioning of mixotroph ingestion and viral lysis to other compartments
     !----------------------------------------------------------------------
     !
-    call g_tracer_add_param('phi_det_mx',mixo(1)%phi_det, 0.10)            ! dimensionless
-    call g_tracer_add_param('phi_ldon_mx',mixo(1)%phi_ldon, 0.7*0.20)    ! dimensionless
-    call g_tracer_add_param('phi_ldop_mx',mixo(1)%phi_ldop, 0.65*0.20)     ! dimensionless
-    call g_tracer_add_param('phi_srdon_mx',mixo(1)%phi_srdon, 0.1*0.20)    ! dimensionless
-    call g_tracer_add_param('phi_srdop_mx',mixo(1)%phi_srdop, 0.15*0.20)   ! dimensionless
-    call g_tracer_add_param('phi_sldon_mx',mixo(1)%phi_sldon, 0.2*0.20)    ! dimensionless
-    call g_tracer_add_param('phi_sldop_mx',mixo(1)%phi_sldop, 0.2*0.20)    ! dimensionless
-    call g_tracer_add_param('phi_nh4_mx',mixo(1)%phi_nh4, 0.30)            ! dimensionless
-    call g_tracer_add_param('phi_po4_mx',mixo(1)%phi_po4, 0.30)            ! dimensionless
+    call g_tracer_add_param('phi_det_mx',mixo(1)%phi_det, mixo_phi_det)            ! dimensionless
+    call g_tracer_add_param('phi_ldon_mx',mixo(1)%phi_ldon, mixo_phi_ldon)    ! dimensionless
+    call g_tracer_add_param('phi_ldop_mx',mixo(1)%phi_ldop, mixo_phi_ldop)     ! dimensionless
+    call g_tracer_add_param('phi_srdon_mx',mixo(1)%phi_srdon, mixo_phi_srdon)    ! dimensionless
+    call g_tracer_add_param('phi_srdop_mx',mixo(1)%phi_srdop, mixo_phi_srdop)   ! dimensionless
+    call g_tracer_add_param('phi_sldon_mx',mixo(1)%phi_sldon, mixo_phi_sldon)    ! dimensionless
+    call g_tracer_add_param('phi_sldop_mx',mixo(1)%phi_sldop, mixo_phi_sldop)    ! dimensionless
+    call g_tracer_add_param('phi_nh4_mx',mixo(1)%phi_nh4, mixo_phi_nh4)            ! dimensionless
+    call g_tracer_add_param('phi_po4_mx',mixo(1)%phi_po4, mixo_phi_po4)            ! dimensionless
     !
     !----------------------------------------------------------------------
     ! Partitioning of viral losses to various dissolved pools
@@ -6502,7 +6545,7 @@ write (stdlogunit, generic_COBALT_nml)
     !
     call g_tracer_add_param('eta', mixo(1)%eta, mixo_eta)                       ! none
     call g_tracer_add_param('nu', mixo(1)%nu, mixo_nu)                     ! s-1
-    call g_tracer_add_param('psi_static', mixo(1)%psi_static, 0.5)                       ! none
+    call g_tracer_add_param('psi_static', mixo(1)%psi_static, mixo_psi_static)                       ! none
     !
     !-----------------------------------------------------------------------
     ! Miscellaneous
